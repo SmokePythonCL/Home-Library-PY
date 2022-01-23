@@ -3,12 +3,13 @@ import requests_html
 from PIL import Image
 from io import BytesIO
 import json
+from database import load, save, delete
 
 
 def search(session, code, key):
 
     try:
-        page = urlopen('https://www.googleapis.com/books/v1/volumes?q=isbn:{}&key={}'.format(code, key))
+        page = urlopen(f'https://www.googleapis.com/books/v1/volumes?q=isbn:{code}&key={key}')
         data_json = json.loads(page.read())
         info = data_json['items'][0]['volumeInfo']
         title = info['title']
@@ -21,34 +22,36 @@ def search(session, code, key):
 
     except TypeError:
         print('No reconozco el ISBN')
-
-
-def save(title, authors, image):
-    keep = input('¿Desea guardar estos datos? [S][N]\n')
-    if keep == 'S':
-        pass
-    elif keep == 'N':
-        print('Entonces busquemos otro.')
-        main()
-    else:
-        print('Esa opción no existe.')
-        save(title, authors, image)
+    
+    except KeyError:
+        image = ''
+        return title, authors, image
 
 
 def main():
+    cur, con = load()
+    title, authors, image = '', '', ''
     try:
         session = requests_html.HTMLSession()
         key = '' #Here's go yours API key.
         code = input('Introduce ISBN: ')
         title, authors, image = search(session, code, key)
         print(title + '\n' + authors)
-        image.show()
-        save(title, authors, image)
+
+        if image == '':
+            save(title, authors, image, cur, con, code)
+
+        else:
+            image.show()
+            save(title, authors, image, cur, con, code)
+            
         
 
     except AttributeError:
         print('Hubo un error, intenta con otro ISBN')
         main()
+
+    con.close()
 
 
 if __name__ == '__main__':
